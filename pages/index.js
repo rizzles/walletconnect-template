@@ -1,65 +1,119 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import { useState, useEffect } from 'react';
+import { Web3ReactProvider, useWeb3React, UnsupportedChainIdError } from '@web3-react/core';
+import { walletconnect } from '../connectors';
+import { Web3Provider } from '@ethersproject/providers'
+import { formatEther } from '@ethersproject/units'
+import { Spinner } from '../components/Spinner';
 
-export default function Home() {
+function getLibrary(provider) {
+  const library = new Web3Provider(provider)
+  library.pollingInterval = 12000
+  return library
+}
+
+export default function() {
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    <Web3ReactProvider getLibrary={getLibrary}>
+      <App />
+    </Web3ReactProvider>
+  )
+}
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+function Balance() {
+  const { account, library, chainId } = useWeb3React()
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
+  const [balance, setBalance] = useState()
+  useEffect(() => {
+    if (!!account && !!library) {
+      let stale = false
 
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
+      library
+        .getBalance(account)
+        .then((balance) => {
+          if (!stale) {
+            setBalance(balance)
+          }
+        })
+        .catch(() => {
+          if (!stale) {
+            setBalance(null)
+          }
+        })
 
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
+      return () => {
+        stale = true
+        setBalance(undefined)
+      }
+    }
+  }, [account, library, chainId]) // ensures refresh if referential identity of library doesn't change across chainIds
 
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
+  return (
+    <>
+      <span>Balance</span>
+      <span role="img" aria-label="gold">
+        💰
+      </span>
+      <span>{balance === null ? 'Error' : balance ? `Ξ${formatEther(balance)}` : ''}</span>
+    </>
+  )
+}
 
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
+const App = () => {
+  const context = useWeb3React();
+  const { connector, library, chainId, account, activate, deactivate, active, error } = context;
+  const [activatingConnector, setActivatingConnector] = useState();
 
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  useEffect(() => {
+    if (activatingConnector && activatingConnector === connector) {
+      setActivatingConnector(undefined)
+    }
+  }, [activatingConnector, connector])
+
+  const currentConnector = walletconnect;
+  const activating = currentConnector === activatingConnector;
+  const connected = currentConnector === connector;
+  const disabled = !!activatingConnector || connected || !!error
+  const name = 'WalletConnect';
+
+  return (
+    <>
+      <button
+        style={{
+          height: '3rem',
+          borderRadius: '1rem',
+          borderColor: activating ? 'orange' : connected ? 'green' : 'unset',
+          cursor: disabled ? 'unset' : 'pointer',
+          position: 'relative'
+        }}
+        disabled={disabled}
+        key={name}
+        onClick={() => {
+          setActivatingConnector(currentConnector)
+          activate(walletconnect)
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            color: 'black',
+            margin: '0 0 0 1rem'
+          }}
         >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
+          {activating && <Spinner color={'black'} style={{ height: '25%', marginLeft: '-1rem' }} />}
+          {connected && (
+            <span role="img" aria-label="check">
+              ✅
+            </span>
+          )}
+        </div>
+        {name}
+      </button>
+      <Balance />
+    </>
   )
 }
