@@ -7,7 +7,6 @@ import {
 import { Web3Provider } from '@ethersproject/providers';
 import { formatEther } from '@ethersproject/units';
 import { walletconnect } from '../connectors';
-import { Spinner } from '../components/Spinner';
 
 function getLibrary(provider) {
     const library = new Web3Provider(provider);
@@ -58,11 +57,7 @@ function Balance() {
                 💰
             </span>
             <span>
-                {balance === null
-                    ? 'Error'
-                    : balance
-                    ? `Ξ${formatEther(balance)}`
-                    : ''}
+                {balance === null ? 'Error' : `${formatEther(balance)}`}
             </span>
         </>
     );
@@ -105,24 +100,8 @@ const App = () => {
                 }}
                 type="button"
             >
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: '0',
-                        left: '0',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        color: 'black',
-                        margin: '0 0 0 1rem',
-                    }}
-                >
-                    {activating && (
-                        <Spinner
-                            color="black"
-                            style={{ height: '25%', marginLeft: '-1rem' }}
-                        />
-                    )}
+                <div>
+                    {activating && <p>Activating</p>}
                     {connected && (
                         <span role="img" aria-label="check">
                             ✅
